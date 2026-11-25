@@ -1,0 +1,2627 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RezyumeStudio — Professional AI Rezyume Yaratuvchi</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    /* Minimalist Zinc/Slate scrollbars & A4 preview styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #d4d4d8;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #a1a1aa;
+    }
+
+    .a4-sheet {
+      width: 210mm;
+      min-height: 297mm;
+      background: #ffffff;
+      color: #18181b;
+      box-sizing: border-box;
+      position: relative;
+    }
+
+    .font-cv-inter {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    .font-cv-georgia {
+      font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+    }
+    .font-cv-mono {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    @keyframes subtlePulse {
+      0%, 100% { opacity: 0.55; }
+      50% { opacity: 1; }
+    }
+    .ai-loading {
+      animation: subtlePulse 1.3s ease-in-out infinite;
+    }
+
+    /* Clean A4 print styling without UI chrome */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+      html, body {
+        width: 210mm;
+        height: auto;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-only-container {
+        display: block !important;
+        width: 210mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        transform: none !important;
+      }
+      .a4-sheet {
+        width: 210mm !important;
+        min-height: 297mm !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+      }
+      .avoid-break {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body class="bg-zinc-50 text-zinc-900 font-sans antialiased selection:bg-zinc-900 selection:text-white">
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    // ---------------------------------------------------------------------------
+    // Constants, Themes & Sample Data
+    // ---------------------------------------------------------------------------
+    const STORAGE_KEY = 'rezyumestudio_state_v1';
+
+    const ACCENTS = {
+      zinc: {
+        id: 'zinc',
+        name: 'Zinc',
+        hex: '#18181b',
+        softBg: '#f4f4f5',
+        border: '#d4d4d8',
+        text: '#18181b',
+        swatchClass: 'bg-zinc-900',
+      },
+      indigo: {
+        id: 'indigo',
+        name: 'Indigo',
+        hex: '#4338ca',
+        softBg: '#eef2ff',
+        border: '#c7d2fe',
+        text: '#3730a3',
+        swatchClass: 'bg-indigo-700',
+      },
+      emerald: {
+        id: 'emerald',
+        name: 'Emerald',
+        hex: '#047857',
+        softBg: '#ecfdf5',
+        border: '#a7f3d0',
+        text: '#065f46',
+        swatchClass: 'bg-emerald-700',
+      },
+      rose: {
+        id: 'rose',
+        name: 'Rose',
+        hex: '#be123c',
+        softBg: '#fff1f2',
+        border: '#fecdd3',
+        text: '#9f1239',
+        swatchClass: 'bg-rose-700',
+      },
+    };
+
+    const TEMPLATES = [
+      { id: 'minimalist', label: 'Minimalist Modern' },
+      { id: 'corporate', label: 'Classic Corporate' },
+      { id: 'tech', label: 'Tech / IT' },
+    ];
+
+    const FONTS = [
+      { id: 'inter', label: 'Inter', className: 'font-cv-inter' },
+      { id: 'georgia', label: 'Georgia Serif', className: 'font-cv-georgia' },
+      { id: 'mono', label: 'JetBrains Mono', className: 'font-cv-mono' },
+    ];
+
+    const TONES = ['Rasmiy', 'Professional', 'Ishonchli', 'Samimiy'];
+
+    const uid = () => Math.random().toString(36).slice(2, 9);
+
+    const createEmptyData = () => ({
+      personal: {
+        fullName: '',
+        birthDate: '',
+        location: '',
+        phone: '',
+        email: '',
+        linkedin: '',
+        github: '',
+        portfolio: '',
+        photo: '',
+        showPhoto: true,
+      },
+      professional: {
+        targetRole: '',
+        summary: '',
+      },
+      experiences: [],
+      educations: [],
+      skills: {
+        hard: [],
+        soft: [],
+        tools: [],
+        languages: [],
+      },
+      extras: {
+        projects: [],
+        awards: [],
+        volunteer: [],
+        publications: [],
+      },
+      coverLetter: {
+        companyName: '',
+        targetRole: '',
+        jobDescription: '',
+        tone: 'Professional',
+        content: '',
+      },
+    });
+
+    const createSampleData = () => ({
+      personal: {
+        fullName: 'Azizbek Karimov',
+        birthDate: '1997-05-14',
+        location: 'Toshkent, O‘zbekiston',
+        phone: '+998 90 123 45 67',
+        email: 'azizbek.karimov@example.com',
+        linkedin: 'https://linkedin.com/in/azizbek-karimov',
+        github: 'https://github.com/azizbek-dev',
+        portfolio: 'https://azizbek.dev',
+        photo: '',
+        showPhoto: false,
+      },
+      professional: {
+        targetRole: 'Frontend / Full-Stack Dasturchi',
+        summary:
+          'Veb-ilovalar va foydalanuvchi interfeyslarini ishlab chiqish tajribasiga ega dasturchi. TypeScript, React va Node.js asosida tez, barqaror va qulay interfeyslar yaratishga e’tibor qarataman.',
+      },
+      experiences: [
+        {
+          id: uid(),
+          company: 'PayTech Solutions',
+          role: 'Middle Frontend Dasturchi',
+          startDate: '2023-03',
+          endDate: 'Hozirgi vaqt',
+          bullets: [
+            'React va TypeScript yordamida to‘lov kabineti interfeysini qayta ishlab chiqdim',
+            'Komponentlar kutubxonasini standartlashtirib, sahifa yuklanish tezligini yaxshiladim',
+            'Dizayn va backend jamoalari bilan hamkorlikda yangi modullarni ishlab chiqishda qatnashdim',
+          ],
+        },
+        {
+          id: uid(),
+          company: 'UzSoft Studio',
+          role: 'Junior Veb Dasturchi',
+          startDate: '2021-07',
+          endDate: '2023-02',
+          bullets: [
+            'Mijozlar uchun korporativ saytlar va boshqaruv panellarini sahifaladim',
+            'REST API bilan ishlash va formalarni tekshirish mantig‘ini joriy etdim',
+          ],
+        },
+      ],
+      educations: [
+        {
+          id: uid(),
+          institution: 'Toshkent axborot texnologiyalari universiteti (TATU)',
+          degreeField: 'Dasturiy injiniring — Bakalavr',
+          startYear: '2017',
+          endYear: '2021',
+          certifications: 'Meta Front-End Developer Certificate (Coursera)',
+        },
+      ],
+      skills: {
+        hard: ['React', 'TypeScript', 'JavaScript (ES6+)', 'Node.js', 'REST API'],
+        soft: ['Jamoada ishlash', 'Muammolarni tahlil qilish', 'Muloqot'],
+        tools: ['Git', 'Docker', 'Figma', 'VS Code', 'Linux'],
+        languages: [
+          { id: uid(), name: 'O‘zbek tili', level: 'Ona tili' },
+          { id: uid(), name: 'Ingliz tili', level: 'B2 (Upper-Intermediate)' },
+          { id: uid(), name: 'Rus tili', level: 'B1' },
+        ],
+      },
+      extras: {
+        projects: [
+          {
+            id: uid(),
+            title: 'TaskFlow — Vazifalar boshqaruv veb-ilovasi',
+            subtitle: 'React, Tailwind CSS, LocalStorage',
+            date: '2024',
+            description: 'Kichik jamoalar uchun kanban doskasi va vazifalar filtratsiyasi bilan veb-ilova.',
+          },
+        ],
+        awards: [
+          {
+            id: uid(),
+            title: 'Respublika Veb-Ishlanmalar Hakatonida 2-o‘rin',
+            subtitle: 'Raqamli xizmatlar yo‘nalishi',
+            date: '2023',
+            description: 'Qisqa muddatda foydalanuvchiga yo‘naltirilgan prototip taqdim etilgan.',
+          },
+        ],
+        volunteer: [
+          {
+            id: uid(),
+            title: 'Dasturlash asoslari bo‘yicha mentorlik',
+            subtitle: 'Talabalar texnik klubi',
+            date: '2022–2023',
+            description: 'Yangi boshlovchi dasturchilarga Git va veb-asoslar bo‘yicha amaliy maslahatlar berdim.',
+          },
+        ],
+        publications: [
+          {
+            id: uid(),
+            title: 'React komponentlarida holatni boshqarish amaliyoti',
+            subtitle: 'Texnik blog maqolasi',
+            date: '2024',
+            description: 'Katta formalar va real vaqtli ko‘rinish bilan ishlash tajribasi bayon etilgan.',
+          },
+        ],
+      },
+      coverLetter: {
+        companyName: 'NordicCloud Systems',
+        targetRole: 'Frontend Dasturchi',
+        jobDescription:
+          'React va TypeScript biladigan, interfeys sifatiga e’tiborli va jamoada samarali ishlay oladigan Frontend dasturchi izlanmoqda.',
+        tone: 'Professional',
+        content: '',
+      },
+    });
+
+    // ---------------------------------------------------------------------------
+    // Fact-Grounded Inline AI Text Polisher
+    // ---------------------------------------------------------------------------
+    const polishSummaryFactually = (rawText, role) => {
+      const cleaned = (rawText || '').trim().replace(/\s+/g, ' ');
+      const roleLabel = (role || '').trim() || 'mutaxassis';
+
+      if (!cleaned) {
+        return `${roleLabel} yo‘nalishida faoliyat yurituvchi mutaxassis. Kiritilgan ish tajribasi va ko‘nikmalar asosida aniq, tushunarli va ishonchli natijalar berishga intilaman.`;
+      }
+
+      const capitalized = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+      const withPeriod = /[.!?…]$/.test(capitalized) ? capitalized : `${capitalized}.`;
+
+      if (role && !withPeriod.toLowerCase().includes(role.toLowerCase())) {
+        return `${withPeriod} ${roleLabel} lavozimiga yo‘naltirilgan holda kiritilgan tajriba va ko‘nikmalarga tayangan profil.`;
+      }
+      return withPeriod;
+    };
+
+    const polishBulletFactually = (rawBullet, role) => {
+      const base = (rawBullet || '').trim().replace(/\s+/g, ' ');
+      if (!base) {
+        return role
+          ? `${role} vazifalari doirasida belgilangan topshiriqlarni bajarishda ishtirok etdim`
+          : 'Belgilangan vazifalarni tartibli va sifatli bajarishda ishtirok etdim';
+      }
+
+      let text = base.replace(/[.]+$/, '');
+      text = text.charAt(0).toUpperCase() + text.slice(1);
+
+      const alreadyActionLike =
+        /(dim|dim\.|qildim|yaratdim|ishlab chiqdim|boshqardim|tashkil etdim|optimallashtirdim|joriy etdim|tayyorladim|yordam berdim|qatnashdim)$/i.test(
+          text
+        );
+
+      if (!alreadyActionLike) {
+        return `Amalga oshirdim: ${text}`;
+      }
+      return text;
+    };
+
+    const buildCoverLetterFromResume = (data, clConfig) => {
+      const name = data.personal.fullName.trim() || 'Nomzod';
+      const email = data.personal.email.trim();
+      const phone = data.personal.phone.trim();
+      const role = (clConfig.targetRole || data.professional.targetRole || 'mutaxassis').trim();
+      const company = (clConfig.companyName || 'kompaniya').trim();
+      const jobDesc = (clConfig.jobDescription || '').trim();
+      const tone = clConfig.tone || 'Professional';
+
+      const latestExp = data.experiences[0];
+      const topSkills = [
+        ...(data.skills.hard || []),
+        ...(data.skills.tools || []),
+      ].slice(0, 5);
+
+      const greetingMap = {
+        Rasmiy: `Hurmatli ${company} vakillari,`,
+        Professional: `Assalomu alaykum, ${company} jamoasi,`,
+        Ishonchli: `Hurmatli ${company} ishga olish jamoasi,`,
+        Samimiy: `Salom, ${company} jamoasi!`,
+      };
+
+      const closingMap = {
+        Rasmiy: 'Hurmat bilan,',
+        Professional: 'Hurmat va ehtirom bilan,',
+        Ishonchli: 'Hamkorlik umidida,',
+        Samimiy: 'Eng yaxshi tilaklar bilan,',
+      };
+
+      const expSentence = latestExp
+        ? `Oxirgi ish tajribamda (${latestExp.company}${latestExp.role ? ` — ${latestExp.role}` : ''}) kiritilgan vazifalar hamda loyihalar ustida ishladim.`
+        : 'Rezyumemda keltirilgan tajriba va bilimlarim asosida ushbu lavozimga munosib hissa qo‘sha olaman deb hisoblayman.';
+
+      const skillsSentence =
+        topSkills.length > 0
+          ? `Asosiy ko‘nikmalarim qatorida ${topSkills.join(', ')} yo‘nalishlari mavjud.`
+          : '';
+
+      const jdSentence = jobDesc
+        ? `Vakansiya talablari bilan tanishib chiqdim va o‘zimning mavjud tajribamni "${company}"dagi "${role}" yo‘nalishidagi vazifalarga mos ravishda qo‘llashga tayyorman.`
+        : `"${company}" kompaniyasida "${role}" lavozimiga nomzodligimni ko‘rib chiqishingizni so‘rayman.`;
+
+      const contactLine = [email, phone].filter(Boolean).join(' • ');
+
+      return [
+        greetingMap[tone] || greetingMap.Professional,
+        '',
+        `Men, ${name}, ${jdSentence}`,
+        '',
+        `${expSentence} ${skillsSentence}`.trim(),
+        '',
+        data.professional.summary?.trim()
+          ? `Qisqacha o‘zim haqimda: ${data.professional.summary.trim()}`
+          : '',
+        '',
+        'Suhbat davomida tajribam va rezyumedagi ma’lumotlar yuzasidan batafsil ma’lumot berishdan mamnun bo‘laman.',
+        '',
+        closingMap[tone] || closingMap.Professional,
+        name,
+        contactLine,
+      ]
+        .filter((line, idx, arr) => !(line === '' && arr[idx - 1] === ''))
+        .join('\n')
+        .trim();
+    };
+
+    const calculateCompletion = (data) => {
+      const checks = [
+        Boolean(data.personal.fullName?.trim()),
+        Boolean(data.personal.email?.trim()),
+        Boolean(data.personal.phone?.trim() || data.personal.location?.trim()),
+        Boolean(data.professional.targetRole?.trim()),
+        Boolean(data.professional.summary?.trim()),
+        data.experiences.length > 0,
+        data.educations.length > 0,
+        (data.skills.hard?.length || 0) + (data.skills.tools?.length || 0) > 0,
+      ];
+      const done = checks.filter(Boolean).length;
+      return Math.round((done / checks.length) * 100);
+    };
+
+    const buildMarkdownResume = (data) => {
+      const p = data.personal;
+      const lines = [];
+      lines.push(`# ${p.fullName || 'Ism-sharif ko‘rsatilmagan'}`);
+      if (data.professional.targetRole) {
+        lines.push(`**${data.professional.targetRole}**`);
+      }
+      const meta = [p.email, p.phone, p.location, p.birthDate ? `Tug‘ilgan sana: ${p.birthDate}` : '']
+        .filter(Boolean)
+        .join(' | ');
+      if (meta) lines.push(meta);
+
+      const links = [
+        p.linkedin && `[LinkedIn](${p.linkedin})`,
+        p.github && `[GitHub](${p.github})`,
+        p.portfolio && `[Portfolio](${p.portfolio})`,
+      ]
+        .filter(Boolean)
+        .join(' | ');
+      if (links) lines.push(links);
+
+      if (data.professional.summary) {
+        lines.push('\n## Qisqacha tavsif\n');
+        lines.push(data.professional.summary);
+      }
+
+      if (data.experiences.length > 0) {
+        lines.push('\n## Ish tajribasi\n');
+        data.experiences.forEach((exp) => {
+          const period = [exp.startDate, exp.endDate].filter(Boolean).join(' — ');
+          lines.push(`### ${exp.role || 'Lavozim'} — ${exp.company || 'Kompaniya'}`);
+          if (period) lines.push(`*${period}*`);
+          (exp.bullets || []).forEach((b) => {
+            if (b.trim()) lines.push(`- ${b.trim()}`);
+          });
+          lines.push('');
+        });
+      }
+
+      if (data.educations.length > 0) {
+        lines.push('\n## Ta’lim\n');
+        data.educations.forEach((ed) => {
+          const yrs = [ed.startYear, ed.endYear].filter(Boolean).join(' – ');
+          lines.push(`- **${ed.institution || 'Muassasa'}** — ${ed.degreeField || ''} ${yrs ? `(${yrs})` : ''}`);
+          if (ed.certifications) lines.push(`  Sertifikat/Kurs: ${ed.certifications}`);
+        });
+      }
+
+      const { hard, soft, tools, languages } = data.skills;
+      if (hard.length || soft.length || tools.length || languages.length) {
+        lines.push('\n## Ko‘nikmalar\n');
+        if (hard.length) lines.push(`- **Kasbiy ko‘nikmalar:** ${hard.join(', ')}`);
+        if (soft.length) lines.push(`- **Shaxsiy ko‘nikmalar:** ${soft.join(', ')}`);
+        if (tools.length) lines.push(`- **Dasturiy vositalar:** ${tools.join(', ')}`);
+        if (languages.length) {
+          lines.push(
+            `- **Tillar:** ${languages.map((l) => `${l.name} (${l.level})`).join(', ')}`
+          );
+        }
+      }
+
+      const extraGroups = [
+        { title: 'Loyihalar', items: data.extras.projects },
+        { title: 'Mukofotlar va yutuqlar', items: data.extras.awards },
+        { title: 'Ko‘ngillilik faoliyati', items: data.extras.volunteer },
+        { title: 'Nashrlar', items: data.extras.publications },
+      ];
+      extraGroups.forEach((grp) => {
+        if (grp.items?.length) {
+          lines.push(`\n## ${grp.title}\n`);
+          grp.items.forEach((it) => {
+            lines.push(
+              `- **${it.title}**${it.subtitle ? ` (${it.subtitle})` : ''}${it.date ? ` — ${it.date}` : ''}${
+                it.description ? `: ${it.description}` : ''
+              }`
+            );
+          });
+        }
+      });
+
+      return lines.join('\n').trim();
+    };
+
+    const downloadFile = (filename, content, mimeType) => {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+
+    // ---------------------------------------------------------------------------
+    // Reusable UI Primitives
+    // ---------------------------------------------------------------------------
+    const RequiredBadge = () => (
+      <span className="ml-1.5 inline-flex items-center rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] font-medium text-white">
+        Majburiy
+      </span>
+    );
+
+    const OptionalBadge = () => (
+      <span className="ml-1.5 inline-flex items-center rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500 border border-zinc-200">
+        Ixtiyoriy
+      </span>
+    );
+
+    const TagInput = ({ label, required, items, onAdd, onRemove, placeholder }) => {
+      const [draft, setDraft] = useState('');
+
+      const handleAdd = () => {
+        const val = draft.trim();
+        if (!val) return;
+        if (!items.includes(val)) {
+          onAdd(val);
+        }
+        setDraft('');
+      };
+
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-zinc-700 flex items-center">
+              {label}
+              {required ? <RequiredBadge /> : <OptionalBadge />}
+            </label>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAdd();
+                }
+              }}
+              placeholder={placeholder}
+              className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={handleAdd}
+              className="rounded-lg border border-zinc-300 bg-zinc-100 px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-200 transition"
+            >
+              Qo‘shish
+            </button>
+          </div>
+          {items.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {items.map((item) => (
+                <span
+                  key={item}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-800"
+                >
+                  {item}
+                  <button
+                    type="button"
+                    onClick={() => onRemove(item)}
+                    aria-label={`${item} o‘chirish`}
+                    className="text-zinc-400 hover:text-rose-600 font-semibold leading-none"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-zinc-400">Hozircha element qo‘shilmagan.</p>
+          )}
+        </div>
+      );
+    };
+
+    // ---------------------------------------------------------------------------
+    // A4 Resume Preview Renderer
+    // ---------------------------------------------------------------------------
+    const ResumePreviewSheet = React.forwardRef(({ data, templateId, accentId, fontId, id }, ref) => {
+      const accent = ACCENTS[accentId] || ACCENTS.zinc;
+      const font = FONTS.find((f) => f.id === fontId) || FONTS[0];
+      const p = data.personal;
+
+      const hasContacts = Boolean(p.email || p.phone || p.location || p.birthDate);
+      const hasLinks = Boolean(p.linkedin || p.github || p.portfolio);
+      const hasSkills =
+        data.skills.hard.length > 0 ||
+        data.skills.soft.length > 0 ||
+        data.skills.tools.length > 0 ||
+        data.skills.languages.length > 0;
+
+      const hasExtras =
+        data.extras.projects.length > 0 ||
+        data.extras.awards.length > 0 ||
+        data.extras.volunteer.length > 0 ||
+        data.extras.publications.length > 0;
+
+      const renderPhoto = (sizeClass = 'w-20 h-20') => {
+        if (!p.showPhoto || !p.photo) return null;
+        return (
+          <img
+            src={p.photo}
+            alt={p.fullName || 'Profil rasmi'}
+            className={`${sizeClass} rounded-full object-cover border border-zinc-200 shrink-0`}
+          />
+        );
+      };
+
+      const renderContactRow = () => (
+        <div className="space-y-1 text-xs text-zinc-600">
+          {hasContacts && (
+            <div className="flex flex-wrap gap-x-3 gap-y-1">
+              {p.email && <span>{p.email}</span>}
+              {p.phone && <span>• {p.phone}</span>}
+              {p.location && <span>• {p.location}</span>}
+              {p.birthDate && <span>• Tug‘ilgan sana: {p.birthDate}</span>}
+            </div>
+          )}
+          {hasLinks && (
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px]" style={{ color: accent.text }}>
+              {p.linkedin && <span className="truncate max-w-[220px]">{p.linkedin}</span>}
+              {p.github && <span className="truncate max-w-[220px]">{p.github}</span>}
+              {p.portfolio && <span className="truncate max-w-[220px]">{p.portfolio}</span>}
+            </div>
+          )}
+        </div>
+      );
+
+      const renderBodySections = () => (
+        <div className="space-y-5 text-sm leading-relaxed">
+          {data.professional.summary?.trim() && (
+            <section className="avoid-break">
+              <h2
+                className="text-xs font-bold uppercase tracking-wider pb-1 mb-2 border-b"
+                style={{ color: accent.text, borderColor: accent.border }}
+              >
+                Qisqacha tavsif
+              </h2>
+              <p className="text-xs text-zinc-700 leading-relaxed whitespace-pre-line">
+                {data.professional.summary}
+              </p>
+            </section>
+          )}
+
+          {data.experiences.length > 0 && (
+            <section className="space-y-3">
+              <h2
+                className="text-xs font-bold uppercase tracking-wider pb-1 border-b avoid-break"
+                style={{ color: accent.text, borderColor: accent.border }}
+              >
+                Ish tajribasi
+              </h2>
+              {data.experiences.map((exp) => (
+                <div key={exp.id} className="avoid-break space-y-1">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <div>
+                      <span className="font-semibold text-zinc-900 text-xs sm:text-sm">
+                        {exp.role || 'Lavozim'}
+                      </span>
+                      {exp.company && (
+                        <span className="text-xs text-zinc-600"> — {exp.company}</span>
+                      )}
+                    </div>
+                    {(exp.startDate || exp.endDate) && (
+                      <span className="text-[11px] font-medium text-zinc-500">
+                        {[exp.startDate, exp.endDate].filter(Boolean).join(' – ')}
+                      </span>
+                    )}
+                  </div>
+                  {exp.bullets?.length > 0 && (
+                    <ul className="list-disc pl-4 space-y-1 text-xs text-zinc-700">
+                      {exp.bullets.map((b, idx) =>
+                        b.trim() ? <li key={idx}>{b}</li> : null
+                      )}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </section>
+          )}
+
+          {data.educations.length > 0 && (
+            <section className="space-y-2.5">
+              <h2
+                className="text-xs font-bold uppercase tracking-wider pb-1 border-b avoid-break"
+                style={{ color: accent.text, borderColor: accent.border }}
+              >
+                Ta’lim va sertifikatlar
+              </h2>
+              {data.educations.map((ed) => (
+                <div key={ed.id} className="avoid-break text-xs space-y-0.5">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-semibold text-zinc-900">
+                      {ed.institution || 'Ta’lim muassasasi'}
+                    </span>
+                    {(ed.startYear || ed.endYear) && (
+                      <span className="text-[11px] text-zinc-500">
+                        {[ed.startYear, ed.endYear].filter(Boolean).join(' – ')}
+                      </span>
+                    )}
+                  </div>
+                  {ed.degreeField && <div className="text-zinc-700">{ed.degreeField}</div>}
+                  {ed.certifications && (
+                    <div className="text-[11px] text-zinc-500">
+                      Sertifikat / Kurs: {ed.certifications}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </section>
+          )}
+
+          {hasSkills && (
+            <section className="avoid-break space-y-2">
+              <h2
+                className="text-xs font-bold uppercase tracking-wider pb-1 border-b"
+                style={{ color: accent.text, borderColor: accent.border }}
+              >
+                Ko‘nikmalar va tillar
+              </h2>
+              <div className="grid grid-cols-1 gap-1.5 text-xs">
+                {data.skills.hard.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-semibold text-zinc-800 mr-1">Kasbiy:</span>
+                    {data.skills.hard.map((s) => (
+                      <span
+                        key={s}
+                        className="rounded px-2 py-0.5 text-[11px] font-medium"
+                        style={{ backgroundColor: accent.softBg, color: accent.text }}
+                      >
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {data.skills.tools.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-semibold text-zinc-800 mr-1">Vositalar:</span>
+                    {data.skills.tools.map((t) => (
+                      <span
+                        key={t}
+                        className="rounded border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] text-zinc-700"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {data.skills.soft.length > 0 && (
+                  <div className="text-zinc-700">
+                    <span className="font-semibold text-zinc-800">Shaxsiy: </span>
+                    {data.skills.soft.join(', ')}
+                  </div>
+                )}
+                {data.skills.languages.length > 0 && (
+                  <div className="text-zinc-700">
+                    <span className="font-semibold text-zinc-800">Tillar: </span>
+                    {data.skills.languages
+                      .map((l) => `${l.name}${l.level ? ` (${l.level})` : ''}`)
+                      .join(', ')}
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {hasExtras && (
+            <section className="space-y-3">
+              <h2
+                className="text-xs font-bold uppercase tracking-wider pb-1 border-b avoid-break"
+                style={{ color: accent.text, borderColor: accent.border }}
+              >
+                Qo‘shimcha ma’lumotlar
+              </h2>
+              {[
+                { label: 'Loyihalar', items: data.extras.projects },
+                { label: 'Mukofotlar va yutuqlar', items: data.extras.awards },
+                { label: 'Ko‘ngillilik faoliyati', items: data.extras.volunteer },
+                { label: 'Nashrlar', items: data.extras.publications },
+              ].map((group) =>
+                group.items.length > 0 ? (
+                  <div key={group.label} className="avoid-break space-y-1.5">
+                    <div className="text-xs font-semibold text-zinc-800">{group.label}</div>
+                    {group.items.map((item) => (
+                      <div key={item.id} className="text-xs text-zinc-700 pl-2 border-l-2 border-zinc-200">
+                        <div className="flex justify-between gap-2">
+                          <span className="font-medium text-zinc-900">
+                            {item.title}
+                            {item.subtitle ? ` — ${item.subtitle}` : ''}
+                          </span>
+                          {item.date && <span className="text-[11px] text-zinc-500">{item.date}</span>}
+                        </div>
+                        {item.description && <p className="text-zinc-600 mt-0.5">{item.description}</p>}
+                      </div>
+                    ))}
+                  </div>
+                ) : null
+              )}
+            </section>
+          )}
+        </div>
+      );
+
+      return (
+        <div ref={ref} id={id} className={`a4-sheet p-8 sm:p-10 ${font.className}`}>
+          {templateId === 'minimalist' && (
+            <div className="space-y-6">
+              <header className="flex items-start justify-between gap-4 border-b border-zinc-200 pb-5">
+                <div className="space-y-1.5">
+                  <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
+                    {p.fullName?.trim() || 'Ism-sharifingiz'}
+                  </h1>
+                  {data.professional.targetRole?.trim() && (
+                    <p className="text-sm font-medium" style={{ color: accent.text }}>
+                      {data.professional.targetRole}
+                    </p>
+                  )}
+                  {renderContactRow()}
+                </div>
+                {renderPhoto('w-20 h-20')}
+              </header>
+              {renderBodySections()}
+            </div>
+          )}
+
+          {templateId === 'corporate' && (
+            <div className="space-y-6">
+              <header
+                className="p-5 rounded-lg border flex items-center justify-between gap-4"
+                style={{ backgroundColor: accent.softBg, borderColor: accent.border }}
+              >
+                <div className="space-y-1">
+                  <h1 className="text-2xl font-bold text-zinc-900">
+                    {p.fullName?.trim() || 'Ism-sharifingiz'}
+                  </h1>
+                  {data.professional.targetRole?.trim() && (
+                    <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: accent.text }}>
+                      {data.professional.targetRole}
+                    </p>
+                  )}
+                  <div className="pt-1">{renderContactRow()}</div>
+                </div>
+                {renderPhoto('w-20 h-20')}
+              </header>
+              {renderBodySections()}
+            </div>
+          )}
+
+          {templateId === 'tech' && (
+            <div className="space-y-5">
+              <header className="border-l-4 pl-4 py-1 flex items-start justify-between gap-4" style={{ borderColor: accent.hex }}>
+                <div className="space-y-1">
+                  <div className="text-[11px] font-mono uppercase tracking-wider text-zinc-500">
+                    ~/resume.json
+                  </div>
+                  <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
+                    {p.fullName?.trim() || 'Ism-sharifingiz'}
+                  </h1>
+                  {data.professional.targetRole?.trim() && (
+                    <p className="text-xs font-mono font-semibold" style={{ color: accent.text }}>
+                      {data.professional.targetRole}
+                    </p>
+                  )}
+                  <div className="pt-1">{renderContactRow()}</div>
+                </div>
+                {renderPhoto('w-16 h-16')}
+              </header>
+              {renderBodySections()}
+            </div>
+          )}
+        </div>
+      );
+    });
+
+    // ---------------------------------------------------------------------------
+    // Main Application
+    // ---------------------------------------------------------------------------
+    function App() {
+      const [resumeData, setResumeData] = useState(() => {
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed && parsed.data) return parsed.data;
+          }
+        } catch (err) {
+          console.error('LocalStorage o‘qishda xatolik:', err);
+        }
+        return createSampleData();
+      });
+
+      const [templateId, setTemplateId] = useState(() => {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+          return saved.templateId || 'minimalist';
+        } catch {
+          return 'minimalist';
+        }
+      });
+
+      const [accentId, setAccentId] = useState(() => {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+          return saved.accentId || 'zinc';
+        } catch {
+          return 'zinc';
+        }
+      });
+
+      const [fontId, setFontId] = useState(() => {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+          return saved.fontId || 'inter';
+        } catch {
+          return 'inter';
+        }
+      });
+
+      const [activeTab, setActiveTab] = useState('personal');
+      const [mobileView, setMobileView] = useState('editor');
+      const [saveStatus, setSaveStatus] = useState('Saqlangan');
+      const [polishingTarget, setPolishingTarget] = useState(null);
+      const [aiDrafts, setAiDrafts] = useState({});
+      const [isExportingPdf, setIsExportingPdf] = useState(false);
+      const [statusBanner, setStatusBanner] = useState(null);
+
+      const [langDraft, setLangDraft] = useState({ name: '', level: 'B2' });
+
+      const [extraDrafts, setExtraDrafts] = useState({
+        projects: { title: '', subtitle: '', date: '', description: '' },
+        awards: { title: '', subtitle: '', date: '', description: '' },
+        volunteer: { title: '', subtitle: '', date: '', description: '' },
+        publications: { title: '', subtitle: '', date: '', description: '' },
+      });
+
+      const importInputRef = useRef(null);
+      const resumePreviewRef = useRef(null);
+      const coverLetterRef = useRef(null);
+
+      useEffect(() => {
+        setSaveStatus('Saqlanmoqda...');
+        const timer = setTimeout(() => {
+          try {
+            const payload = { data: resumeData, templateId, accentId, fontId };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+            setSaveStatus('Saqlangan');
+          } catch (e) {
+            setSaveStatus('Saqlashda xato');
+          }
+        }, 600);
+        return () => clearTimeout(timer);
+      }, [resumeData, templateId, accentId, fontId]);
+
+      const completionPercentage = useMemo(
+        () => calculateCompletion(resumeData),
+        [resumeData]
+      );
+
+      const notify = (msg) => {
+        setStatusBanner(msg);
+        setTimeout(() => setStatusBanner(null), 3500);
+      };
+
+      const handlePhotoUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+          notify('Rasm hajmi 2MB dan kam bo‘lishi kerak.');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const result = event.target?.result;
+          if (result) {
+            setResumeData((prev) => ({
+              ...prev,
+              personal: { ...prev.personal, photo: result, showPhoto: true },
+            }));
+            notify('Rasm yuklandi.');
+          }
+        };
+        reader.readAsDataURL(file);
+      };
+
+      const triggerAiPolishSummary = () => {
+        setPolishingTarget('summary');
+        setTimeout(() => {
+          const polished = polishSummaryFactually(
+            resumeData.professional.summary,
+            resumeData.professional.targetRole
+          );
+          setAiDrafts((prev) => ({ ...prev, summary: polished }));
+          setPolishingTarget(null);
+        }, 350);
+      };
+
+      const acceptAiSummary = () => {
+        if (aiDrafts.summary) {
+          setResumeData((prev) => ({
+            ...prev,
+            professional: { ...prev.professional, summary: aiDrafts.summary },
+          }));
+          setAiDrafts((prev) => ({ ...prev, summary: null }));
+          notify('Tavsif AI sayqali bilan yangilandi.');
+        }
+      };
+
+      const triggerAiPolishBullet = (expId, bulletIdx) => {
+        const key = `${expId}_${bulletIdx}`;
+        setPolishingTarget(key);
+        setTimeout(() => {
+          const exp = resumeData.experiences.find((e) => e.id === expId);
+          const rawBullet = exp?.bullets?.[bulletIdx] || '';
+          const polished = polishBulletFactually(rawBullet, exp?.role);
+          setAiDrafts((prev) => ({ ...prev, [key]: polished }));
+          setPolishingTarget(null);
+        }, 300);
+      };
+
+      const acceptAiBullet = (expId, bulletIdx) => {
+        const key = `${expId}_${bulletIdx}`;
+        const polishedText = aiDrafts[key];
+        if (!polishedText) return;
+
+        setResumeData((prev) => ({
+          ...prev,
+          experiences: prev.experiences.map((exp) => {
+            if (exp.id !== expId) return exp;
+            const updatedBullets = [...exp.bullets];
+            updatedBullets[bulletIdx] = polishedText;
+            return { ...exp, bullets: updatedBullets };
+          }),
+        }));
+        setAiDrafts((prev) => ({ ...prev, [key]: null }));
+        notify('Vazifa punktining matni yangilandi.');
+      };
+
+      const handleAddExperience = () => {
+        const newExp = {
+          id: uid(),
+          company: '',
+          role: '',
+          startDate: '',
+          endDate: '',
+          bullets: [''],
+        };
+        setResumeData((prev) => ({
+          ...prev,
+          experiences: [...prev.experiences, newExp],
+        }));
+      };
+
+      const handleRemoveExperience = (id) => {
+        setResumeData((prev) => ({
+          ...prev,
+          experiences: prev.experiences.filter((e) => e.id !== id),
+        }));
+      };
+
+      const handleAddEducation = () => {
+        const newEd = {
+          id: uid(),
+          institution: '',
+          degreeField: '',
+          startYear: '',
+          endYear: '',
+          certifications: '',
+        };
+        setResumeData((prev) => ({
+          ...prev,
+          educations: [...prev.educations, newEd],
+        }));
+      };
+
+      const handleRemoveEducation = (id) => {
+        setResumeData((prev) => ({
+          ...prev,
+          educations: prev.educations.filter((e) => e.id !== id),
+        }));
+      };
+
+      const handleAddExtraItem = (category) => {
+        const draft = extraDrafts[category];
+        if (!draft.title.trim()) {
+          notify('Sarlavha kiritilishi shart.');
+          return;
+        }
+        const item = { id: uid(), ...draft };
+        setResumeData((prev) => ({
+          ...prev,
+          extras: {
+            ...prev.extras,
+            [category]: [...prev.extras[category], item],
+          },
+        }));
+        setExtraDrafts((prev) => ({
+          ...prev,
+          [category]: { title: '', subtitle: '', date: '', description: '' },
+        }));
+      };
+
+      const handleRemoveExtraItem = (category, itemId) => {
+        setResumeData((prev) => ({
+          ...prev,
+          extras: {
+            ...prev.extras,
+            [category]: prev.extras[category].filter((it) => it.id !== itemId),
+          },
+        }));
+      };
+
+      const handleGenerateCoverLetter = () => {
+        const generated = buildCoverLetterFromResume(resumeData, resumeData.coverLetter);
+        setResumeData((prev) => ({
+          ...prev,
+          coverLetter: {
+            ...prev.coverLetter,
+            content: generated,
+          },
+        }));
+        notify('Hamroh xat rezyume ma’lumotlari asosida yaratildi.');
+      };
+
+      const handleDownloadPdf = async (target = 'resume') => {
+        setIsExportingPdf(true);
+        notify('PDF fayl shakllantirilmoqda, biroz kuting...');
+
+        const userName = (resumeData.personal.fullName || 'Rezyume')
+          .trim()
+          .replace(/[^a-zA-Z0-9_\-]/g, '_');
+
+        const fileName = target === 'coverLetter'
+          ? `${userName}_Hamroh_Xat.pdf`
+          : `${userName}_Rezyume.pdf`;
+
+        const element = target === 'coverLetter' ? coverLetterRef.current : resumePreviewRef.current;
+
+        if (!element) {
+          notify('PDF shakllantirish uchun element topilmadi.');
+          setIsExportingPdf(false);
+          return;
+        }
+
+        const opt = {
+          margin: 0,
+          filename: fileName,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            windowWidth: 1024,
+          },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+        };
+
+        try {
+          if (window.html2pdf) {
+            await window.html2pdf().set(opt).from(element).save();
+            notify(`${fileName} muvaffaqiyatli yuklab olindi!`);
+          } else {
+            window.print();
+          }
+        } catch (err) {
+          console.error('PDF export error:', err);
+          notify('PDF saqlashda xatolik bo‘ldi. Brauzer orqali chop etilmoqda...');
+          window.print();
+        } finally {
+          setIsExportingPdf(false);
+        }
+      };
+
+      const handleExportJson = () => {
+        const jsonStr = JSON.stringify(resumeData, null, 2);
+        downloadFile('rezyume_data.json', jsonStr, 'application/json');
+        notify('JSON fayl yuklandi.');
+      };
+
+      const handleExportMd = () => {
+        const mdText = buildMarkdownResume(resumeData);
+        downloadFile('rezyume.md', mdText, 'text/markdown;charset=utf-8');
+        notify('Markdown (.md) yuklandi.');
+      };
+
+      const handleImportJson = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const parsed = JSON.parse(event.target?.result || '{}');
+            if (parsed.personal && parsed.experiences) {
+              setResumeData(parsed);
+              notify('Rezyume ma’lumotlari muvaffaqiyatli import qilindi.');
+            } else {
+              notify('Yaroqsiz JSON formati.');
+            }
+          } catch (err) {
+            notify('JSON faylni o‘qishda xatolik.');
+          }
+        };
+        reader.readAsText(file);
+      };
+
+      const handleClearAll = () => {
+        if (confirm('Barcha ma’lumotlar tozalanib, bo‘sh shakl yaratilsinmi?')) {
+          setResumeData(createEmptyData());
+          notify('Barcha ma’lumotlar tozalandi.');
+        }
+      };
+
+      const handleResetSample = () => {
+        if (confirm('Namuna ma’lumotlari qayta tiklansinmi?')) {
+          setResumeData(createSampleData());
+          notify('Namuna ma’lumotlari yuklandi.');
+        }
+      };
+
+      const tabs = [
+        { id: 'personal', label: 'Shaxsiy' },
+        { id: 'professional', label: 'Kasbiy' },
+        { id: 'experiences', label: 'Tajriba' },
+        { id: 'educations', label: 'Ta’lim' },
+        { id: 'skills', label: 'Ko‘nikmalar' },
+        { id: 'extras', label: 'Qo‘shimcha' },
+        { id: 'coverLetter', label: 'Hamroh Xat' },
+        { id: 'design', label: 'Dizayn' },
+      ];
+
+      return (
+        <div className="min-h-screen flex flex-col bg-zinc-100/70 text-zinc-900">
+          <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/95 backdrop-blur-sm">
+            <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center text-white font-bold text-sm tracking-widest shadow-sm">
+                  RS
+                </div>
+                <div>
+                  <h1 className="text-sm font-bold tracking-tight text-zinc-900">
+                    RezyumeStudio
+                  </h1>
+                  <p className="text-[11px] text-zinc-500 hidden sm:block">
+                    AI Rezyume & Cover Letter Generator
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-zinc-500 bg-zinc-100 px-2.5 py-1 rounded-md">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  {saveStatus}
+                </span>
+
+                <div className="hidden sm:flex items-center gap-1 bg-zinc-100 p-1 rounded-lg text-xs">
+                  <span className="px-2 py-0.5 text-zinc-600 font-medium">To‘liqlik:</span>
+                  <span className="font-bold text-zinc-900">{completionPercentage}%</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleExportJson}
+                  className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition"
+                  title="JSON formatda saqlash"
+                >
+                  JSON
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportMd}
+                  className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition"
+                  title="Markdown formatda saqlash"
+                >
+                  .MD
+                </button>
+                <input
+                  type="file"
+                  ref={importInputRef}
+                  onChange={handleImportJson}
+                  accept=".json"
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => importInputRef.current?.click()}
+                  className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition"
+                  title="JSON fayldan yuklash"
+                >
+                  Import
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isExportingPdf}
+                  onClick={() => handleDownloadPdf('resume')}
+                  className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 transition disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                >
+                  {isExportingPdf ? (
+                    <>
+                      <span className="w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin inline-block"></span>
+                      Yuklanmoqda...
+                    </>
+                  ) : (
+                    'PDF yuklab olish'
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-zinc-100 bg-white px-4 py-1.5 sm:hidden flex items-center justify-between text-xs">
+              <span className="text-zinc-500">{saveStatus} • To‘liqlik: {completionPercentage}%</span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMobileView('editor')}
+                  className={`px-2 py-1 rounded font-medium ${
+                    mobileView === 'editor' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-700'
+                  }`}
+                >
+                  Forma
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMobileView('preview')}
+                  className={`px-2 py-1 rounded font-medium ${
+                    mobileView === 'preview' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-700'
+                  }`}
+                >
+                  Preview
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {statusBanner && (
+            <div className="bg-zinc-900 text-white text-xs py-2 px-4 text-center font-medium shadow-inner">
+              {statusBanner}
+            </div>
+          )}
+
+          <main className="max-w-7xl mx-auto w-full px-4 py-6 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <section
+              className={`lg:col-span-6 xl:col-span-5 flex flex-col space-y-4 ${
+                mobileView === 'preview' ? 'hidden lg:flex' : 'flex'
+              }`}
+            >
+              <nav className="flex flex-wrap gap-1 border-b border-zinc-200 pb-2">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
+                      activeTab === tab.id
+                        ? 'bg-zinc-900 text-white'
+                        : 'text-zinc-600 hover:bg-zinc-200/60 hover:text-zinc-900'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </nav>
+
+              <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm space-y-5">
+                {activeTab === 'personal' && (
+                  <div className="space-y-4">
+                    <h2 className="text-sm font-bold text-zinc-900 border-b pb-2">
+                      Shaxsiy ma’lumotlar
+                    </h2>
+
+                    <div className="flex items-center gap-4 pt-1">
+                      {resumeData.personal.photo ? (
+                        <img
+                          src={resumeData.personal.photo}
+                          alt="Profil rasmi"
+                          className="w-14 h-14 rounded-full object-cover border border-zinc-200"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center text-xs text-zinc-400">
+                          Rasm yo‘q
+                        </div>
+                      )}
+                      <div className="space-y-1 text-xs">
+                        <label className="block font-medium text-zinc-700">
+                          Fotosurat yuklash <OptionalBadge />
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePhotoUpload}
+                          className="block text-xs text-zinc-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-zinc-100 file:text-zinc-800 hover:file:bg-zinc-200"
+                        />
+                        {resumeData.personal.photo && (
+                          <label className="inline-flex items-center gap-1.5 mt-1 text-zinc-600 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={resumeData.personal.showPhoto}
+                              onChange={(e) =>
+                                setResumeData((prev) => ({
+                                  ...prev,
+                                  personal: { ...prev.personal, showPhoto: e.target.checked },
+                                }))
+                              }
+                              className="rounded border-zinc-300"
+                            />
+                            Rezyumeda rasmni ko‘rsatish
+                          </label>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-zinc-700 flex items-center">
+                        To‘liq ism-sharif <RequiredBadge />
+                      </label>
+                      <input
+                        type="text"
+                        value={resumeData.personal.fullName}
+                        onChange={(e) =>
+                          setResumeData((prev) => ({
+                            ...prev,
+                            personal: { ...prev.personal, fullName: e.target.value },
+                          }))
+                        }
+                        placeholder="Masalan: Azizbek Karimov"
+                        className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-zinc-700 flex items-center">
+                          Elektron pochta <RequiredBadge />
+                        </label>
+                        <input
+                          type="email"
+                          value={resumeData.personal.email}
+                          onChange={(e) =>
+                            setResumeData((prev) => ({
+                              ...prev,
+                              personal: { ...prev.personal, email: e.target.value },
+                            }))
+                          }
+                          placeholder="azizbek@example.com"
+                          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-zinc-700 flex items-center">
+                          Telefon raqami <RequiredBadge />
+                        </label>
+                        <input
+                          type="text"
+                          value={resumeData.personal.phone}
+                          onChange={(e) =>
+                            setResumeData((prev) => ({
+                              ...prev,
+                              personal: { ...prev.personal, phone: e.target.value },
+                            }))
+                          }
+                          placeholder="+998 90 123 45 67"
+                          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-zinc-700 flex items-center">
+                          Yashash manzili <OptionalBadge />
+                        </label>
+                        <input
+                          type="text"
+                          value={resumeData.personal.location}
+                          onChange={(e) =>
+                            setResumeData((prev) => ({
+                              ...prev,
+                              personal: { ...prev.personal, location: e.target.value },
+                            }))
+                          }
+                          placeholder="Toshkent, O‘zbekiston"
+                          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-zinc-700 flex items-center">
+                          Tug‘ilgan sana <OptionalBadge />
+                        </label>
+                        <input
+                          type="date"
+                          value={resumeData.personal.birthDate}
+                          onChange={(e) =>
+                            setResumeData((prev) => ({
+                              ...prev,
+                              personal: { ...prev.personal, birthDate: e.target.value },
+                            }))
+                          }
+                          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 pt-2 border-t border-zinc-100">
+                      <h3 className="text-xs font-semibold text-zinc-800">
+                        Professional havolalar (LinkedIn, GitHub, Portfolio)
+                      </h3>
+                      <div className="space-y-2">
+                        <input
+                          type="url"
+                          value={resumeData.personal.linkedin}
+                          onChange={(e) =>
+                            setResumeData((prev) => ({
+                              ...prev,
+                              personal: { ...prev.personal, linkedin: e.target.value },
+                            }))
+                          }
+                          placeholder="https://linkedin.com/in/username"
+                          className="w-full rounded-lg border border-zinc-300 px-3 py-1.5 text-xs text-zinc-900 focus:border-zinc-900 focus:outline-none"
+                        />
+                        <input
+                          type="url"
+                          value={resumeData.personal.github}
+                          onChange={(e) =>
+                            setResumeData((prev) => ({
+                              ...prev,
+                              personal: { ...prev.personal, github: e.target.value },
+                            }))
+                          }
+                          placeholder="https://github.com/username"
+                          className="w-full rounded-lg border border-zinc-300 px-3 py-1.5 text-xs text-zinc-900 focus:border-zinc-900 focus:outline-none"
+                        />
+                        <input
+                          type="url"
+                          value={resumeData.personal.portfolio}
+                          onChange={(e) =>
+                            setResumeData((prev) => ({
+                              ...prev,
+                              personal: { ...prev.personal, portfolio: e.target.value },
+                            }))
+                          }
+                          placeholder="https://portfolio-website.com"
+                          className="w-full rounded-lg border border-zinc-300 px-3 py-1.5 text-xs text-zinc-900 focus:border-zinc-900 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'professional' && (
+                  <div className="space-y-4">
+                    <h2 className="text-sm font-bold text-zinc-900 border-b pb-2">
+                      Kasbiy ma’lumotlar
+                    </h2>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-zinc-700 flex items-center">
+                        Kasbiy yo‘nalish yoki lavozim <RequiredBadge />
+                      </label>
+                      <input
+                        type="text"
+                        value={resumeData.professional.targetRole}
+                        onChange={(e) =>
+                          setResumeData((prev) => ({
+                            ...prev,
+                            professional: { ...prev.professional, targetRole: e.target.value },
+                          }))
+                        }
+                        placeholder="Masalan: Middle Frontend Dasturchi"
+                        className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium text-zinc-700 flex items-center">
+                          Qisqacha professional tavsif <RequiredBadge />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={triggerAiPolishSummary}
+                          disabled={polishingTarget === 'summary'}
+                          className="text-xs font-medium text-zinc-800 hover:text-zinc-900 flex items-center gap-1 bg-zinc-100 hover:bg-zinc-200 px-2 py-1 rounded transition"
+                        >
+                          {polishingTarget === 'summary' ? (
+                            <span className="ai-loading text-xs">AI tayyorlamoqda...</span>
+                          ) : (
+                            <>
+                              <span>✨</span>
+                              <span>AI bilan sayqallash</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      <textarea
+                        rows={4}
+                        value={resumeData.professional.summary}
+                        onChange={(e) =>
+                          setResumeData((prev) => ({
+                            ...prev,
+                            professional: { ...prev.professional, summary: e.target.value },
+                          }))
+                        }
+                        placeholder="O‘zingizning asosiy tajribangiz, sohadagi yo‘nalishingiz va ustunliklaringiz haqida qisqacha yozing..."
+                        className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-xs text-zinc-900 leading-relaxed focus:border-zinc-900 focus:outline-none"
+                      />
+
+                      {aiDrafts.summary && (
+                        <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 space-y-2">
+                          <div className="text-[11px] font-semibold text-zinc-700 flex items-center gap-1">
+                            <span>✨ AI Taklifi (Faktlarga asoslangan):</span>
+                          </div>
+                          <p className="text-xs text-zinc-800 leading-relaxed bg-white p-2 rounded border border-zinc-200">
+                            {aiDrafts.summary}
+                          </p>
+                          <div className="flex justify-end gap-2 text-xs">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setAiDrafts((prev) => ({ ...prev, summary: null }))
+                              }
+                              className="px-2.5 py-1 rounded border border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-100"
+                            >
+                              Rad etish
+                            </button>
+                            <button
+                              type="button"
+                              onClick={acceptAiSummary}
+                              className="px-2.5 py-1 rounded bg-zinc-900 text-white font-medium hover:bg-zinc-800"
+                            >
+                              Qabul qilish
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'experiences' && (
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <h2 className="text-sm font-bold text-zinc-900">Ish tajribasi</h2>
+                      <button
+                        type="button"
+                        onClick={handleAddExperience}
+                        className="rounded-lg bg-zinc-900 px-3 py-1 text-xs font-medium text-white hover:bg-zinc-800"
+                      >
+                        + Ish joyi qo‘shish
+                      </button>
+                    </div>
+
+                    {resumeData.experiences.length === 0 ? (
+                      <p className="text-xs text-zinc-400 text-center py-4">
+                        Ish tajribasi kiritilmagan. Yuqoridagi tugma orqali ish joyi qo‘shing.
+                      </p>
+                    ) : (
+                      resumeData.experiences.map((exp, expIdx) => (
+                        <div
+                          key={exp.id}
+                          className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 space-y-3 relative"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-zinc-700">
+                              Ish joyi #{expIdx + 1}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveExperience(exp.id)}
+                              className="text-xs text-rose-600 hover:text-rose-800 font-medium"
+                            >
+                              O‘chirish
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-medium text-zinc-700">
+                                Kompaniya / Ish joyi nomi <RequiredBadge />
+                              </label>
+                              <input
+                                type="text"
+                                value={exp.company}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setResumeData((prev) => ({
+                                    ...prev,
+                                    experiences: prev.experiences.map((item) =>
+                                      item.id === exp.id ? { ...item, company: val } : item
+                                    ),
+                                  }));
+                                }}
+                                placeholder="PayTech Solutions"
+                                className="w-full rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs text-zinc-900 bg-white focus:border-zinc-900 focus:outline-none"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-medium text-zinc-700">
+                                Lavozim <RequiredBadge />
+                              </label>
+                              <input
+                                type="text"
+                                value={exp.role}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setResumeData((prev) => ({
+                                    ...prev,
+                                    experiences: prev.experiences.map((item) =>
+                                      item.id === exp.id ? { ...item, role: val } : item
+                                    ),
+                                  }));
+                                }}
+                                placeholder="Middle Frontend Dasturchi"
+                                className="w-full rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs text-zinc-900 bg-white focus:border-zinc-900 focus:outline-none"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-medium text-zinc-700">
+                                Boshlangan sana
+                              </label>
+                              <input
+                                type="text"
+                                value={exp.startDate}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setResumeData((prev) => ({
+                                    ...prev,
+                                    experiences: prev.experiences.map((item) =>
+                                      item.id === exp.id ? { ...item, startDate: val } : item
+                                    ),
+                                  }));
+                                }}
+                                placeholder="2023-03"
+                                className="w-full rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs text-zinc-900 bg-white focus:border-zinc-900 focus:outline-none"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-medium text-zinc-700">
+                                Tugagan sana / Hozirgi
+                              </label>
+                              <input
+                                type="text"
+                                value={exp.endDate}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setResumeData((prev) => ({
+                                    ...prev,
+                                    experiences: prev.experiences.map((item) =>
+                                      item.id === exp.id ? { ...item, endDate: val } : item
+                                    ),
+                                  }));
+                                }}
+                                placeholder="Hozirgi vaqt"
+                                className="w-full rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs text-zinc-900 bg-white focus:border-zinc-900 focus:outline-none"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2 pt-1 border-t border-zinc-200/60">
+                            <label className="text-[11px] font-medium text-zinc-700 flex items-center justify-between">
+                              <span>Vazifalar va erishilgan natijalar (Bullet points)</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setResumeData((prev) => ({
+                                    ...prev,
+                                    experiences: prev.experiences.map((item) =>
+                                      item.id === exp.id
+                                        ? { ...item, bullets: [...item.bullets, ''] }
+                                        : item
+                                    ),
+                                  }));
+                                }}
+                                className="text-[11px] font-medium text-zinc-800 hover:underline"
+                              >
+                                + Punkt qo‘shish
+                              </button>
+                            </label>
+
+                            {exp.bullets.map((bText, bIdx) => {
+                              const draftKey = `${exp.id}_${bIdx}`;
+                              const isPolishing = polishingTarget === draftKey;
+
+                              return (
+                                <div key={bIdx} className="space-y-1.5">
+                                  <div className="flex gap-2 items-center">
+                                    <input
+                                      type="text"
+                                      value={bText}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setResumeData((prev) => ({
+                                          ...prev,
+                                          experiences: prev.experiences.map((item) => {
+                                            if (item.id !== exp.id) return item;
+                                            const newBullets = [...item.bullets];
+                                            newBullets[bIdx] = val;
+                                            return { ...item, bullets: newBullets };
+                                          }),
+                                        }));
+                                      }}
+                                      placeholder="Bajarilgan ish yoki erishilgan natijani kiritasiz..."
+                                      className="flex-1 rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs text-zinc-900 bg-white focus:border-zinc-900 focus:outline-none"
+                                    />
+
+                                    <button
+                                      type="button"
+                                      onClick={() => triggerAiPolishBullet(exp.id, bIdx)}
+                                      disabled={isPolishing}
+                                      className="rounded bg-zinc-200 hover:bg-zinc-300 px-2 py-1 text.5 text-[11px] font-medium text-zinc-800 shrink-0"
+                                      title="AI bilan punktni tekshirish va yaxshilash"
+                                    >
+                                      {isPolishing ? '...' : '✨ Sayqallash'}
+                                    </button>
+
+                                    {exp.bullets.length > 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setResumeData((prev) => ({
+                                            ...prev,
+                                            experiences: prev.experiences.map((item) => {
+                                              if (item.id !== exp.id) return item;
+                                              return {
+                                                ...item,
+                                                bullets: item.bullets.filter((_, idx) => idx !== bIdx),
+                                              };
+                                            }),
+                                          }));
+                                        }}
+                                        className="text-zinc-400 hover:text-rose-600 font-bold text-sm px-1"
+                                      >
+                                        ×
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  {aiDrafts[draftKey] && (
+                                    <div className="rounded border border-zinc-200 bg-white p-2 text-xs space-y-1.5">
+                                      <div className="text-[10px] text-zinc-500 font-medium">
+                                        ✨ AI Sayqallangan variant:
+                                      </div>
+                                      <div className="text-zinc-800 font-medium">
+                                        {aiDrafts[draftKey]}
+                                      </div>
+                                      <div className="flex justify-end gap-2 text-[11px]">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setAiDrafts((prev) => ({
+                                              ...prev,
+                                              [draftKey]: null,
+                                            }))
+                                          }
+                                          className="text-zinc-500 hover:underline"
+                                        >
+                                          Rad etish
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => acceptAiBullet(exp.id, bIdx)}
+                                          className="text-zinc-900 font-bold hover:underline"
+                                        >
+                                          Qabul qilish
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'educations' && (
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <h2 className="text-sm font-bold text-zinc-900">Ta’lim va sertifikatlar</h2>
+                      <button
+                        type="button"
+                        onClick={handleAddEducation}
+                        className="rounded-lg bg-zinc-900 px-3 py-1 text-xs font-medium text-white hover:bg-zinc-800"
+                      >
+                        + O‘quv dargohi qo‘shish
+                      </button>
+                    </div>
+
+                    {resumeData.educations.length === 0 ? (
+                      <p className="text-xs text-zinc-400 text-center py-4">
+                        Ta’lim ma’lumotlari kiritilmagan.
+                      </p>
+                    ) : (
+                      resumeData.educations.map((ed, edIdx) => (
+                        <div
+                          key={ed.id}
+                          className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 space-y-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-zinc-700">
+                              Ta’lim #{edIdx + 1}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveEducation(ed.id)}
+                              className="text-xs text-rose-600 hover:text-rose-800 font-medium"
+                            >
+                              O‘chirish
+                            </button>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-medium text-zinc-700">
+                              Ta’lim muassasasi nomi <RequiredBadge />
+                            </label>
+                            <input
+                              type="text"
+                              value={ed.institution}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setResumeData((prev) => ({
+                                  ...prev,
+                                  educations: prev.educations.map((item) =>
+                                    item.id === ed.id ? { ...item, institution: val } : item
+                                  ),
+                                }));
+                              }}
+                              placeholder="Toshkent axborot texnologiyalari universiteti"
+                              className="w-full rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs text-zinc-900 bg-white focus:border-zinc-900 focus:outline-none"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-medium text-zinc-700">
+                                Mutaxassislik / Daraja <RequiredBadge />
+                              </label>
+                              <input
+                                type="text"
+                                value={ed.degreeField}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setResumeData((prev) => ({
+                                    ...prev,
+                                    educations: prev.educations.map((item) =>
+                                      item.id === ed.id ? { ...item, degreeField: val } : item
+                                    ),
+                                  }));
+                                }}
+                                placeholder="Dasturiy injiniring (Bakalavr)"
+                                className="w-full rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs text-zinc-900 bg-white focus:border-zinc-900 focus:outline-none"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <label className="text-[11px] font-medium text-zinc-700">
+                                  Boshlangan
+                                </label>
+                                <input
+                                  type="text"
+                                  value={ed.startYear}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setResumeData((prev) => ({
+                                      ...prev,
+                                      educations: prev.educations.map((item) =>
+                                        item.id === ed.id ? { ...item, startYear: val } : item
+                                      ),
+                                    }));
+                                  }}
+                                  placeholder="2017"
+                                  className="w-full rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs text-zinc-900 bg-white focus:border-zinc-900 focus:outline-none"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[11px] font-medium text-zinc-700">
+                                  Tugallangan
+                                </label>
+                                <input
+                                  type="text"
+                                  value={ed.endYear}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setResumeData((prev) => ({
+                                      ...prev,
+                                      educations: prev.educations.map((item) =>
+                                        item.id === ed.id ? { ...item, endYear: val } : item
+                                      ),
+                                    }));
+                                  }}
+                                  placeholder="2021"
+                                  className="w-full rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs text-zinc-900 bg-white focus:border-zinc-900 focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-medium text-zinc-700">
+                              Qo‘shimcha kurslar va sertifikatlar <OptionalBadge />
+                            </label>
+                            <input
+                              type="text"
+                              value={ed.certifications}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setResumeData((prev) => ({
+                                  ...prev,
+                                  educations: prev.educations.map((item) =>
+                                    item.id === ed.id ? { ...item, certifications: val } : item
+                                  ),
+                                }));
+                              }}
+                              placeholder="Masalan: Coursera Meta Professional Certificate"
+                              className="w-full rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs text-zinc-900 bg-white focus:border-zinc-900 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'skills' && (
+                  <div className="space-y-5">
+                    <h2 className="text-sm font-bold text-zinc-900 border-b pb-2">
+                      Ko‘nikmalar va Tillar
+                    </h2>
+
+                    <TagInput
+                      label="Kasbiy ko‘nikmalar (Hard Skills)"
+                      required={true}
+                      items={resumeData.skills.hard}
+                      placeholder="Masalan: React, Node.js, SQL"
+                      onAdd={(val) =>
+                        setResumeData((prev) => ({
+                          ...prev,
+                          skills: { ...prev.skills, hard: [...prev.skills.hard, val] },
+                        }))
+                      }
+                      onRemove={(val) =>
+                        setResumeData((prev) => ({
+                          ...prev,
+                          skills: {
+                            ...prev.skills,
+                            hard: prev.skills.hard.filter((i) => i !== val),
+                          },
+                        }))
+                      }
+                    />
+
+                    <TagInput
+                      label="Dasturiy vositalar (Tools & Software)"
+                      required={false}
+                      items={resumeData.skills.tools}
+                      placeholder="Masalan: Git, Docker, Figma, VS Code"
+                      onAdd={(val) =>
+                        setResumeData((prev) => ({
+                          ...prev,
+                          skills: { ...prev.skills, tools: [...prev.skills.tools, val] },
+                        }))
+                      }
+                      onRemove={(val) =>
+                        setResumeData((prev) => ({
+                          ...prev,
+                          skills: {
+                            ...prev.skills,
+                            tools: prev.skills.tools.filter((i) => i !== val),
+                          },
+                        }))
+                      }
+                    />
+
+                    <TagInput
+                      label="Shaxsiy ko‘nikmalar (Soft Skills)"
+                      required={false}
+                      items={resumeData.skills.soft}
+                      placeholder="Masalan: Muloqot, Jamoada ishlash"
+                      onAdd={(val) =>
+                        setResumeData((prev) => ({
+                          ...prev,
+                          skills: { ...prev.skills, soft: [...prev.skills.soft, val] },
+                        }))
+                      }
+                      onRemove={(val) =>
+                        setResumeData((prev) => ({
+                          ...prev,
+                          skills: {
+                            ...prev.skills,
+                            soft: prev.skills.soft.filter((i) => i !== val),
+                          },
+                        }))
+                      }
+                    />
+
+                    <div className="space-y-3 pt-2 border-t border-zinc-100">
+                      <label className="text-xs font-medium text-zinc-700 block">
+                        Xorijiy tillarni bilish darajasi <OptionalBadge />
+                      </label>
+
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={langDraft.name}
+                          onChange={(e) =>
+                            setLangDraft((prev) => ({ ...prev, name: e.target.value }))
+                          }
+                          placeholder="Til nomi (masalan: Ingliz tili)"
+                          className="flex-1 rounded-lg border border-zinc-300 px-3 py-1.5 text-xs text-zinc-900 focus:border-zinc-900 focus:outline-none"
+                        />
+                        <select
+                          value={langDraft.level}
+                          onChange={(e) =>
+                            setLangDraft((prev) => ({ ...prev, level: e.target.value }))
+                          }
+                          className="rounded-lg border border-zinc-300 px-2 py-1.5 text-xs text-zinc-900 bg-white focus:border-zinc-900 focus:outline-none"
+                        >
+                          <option value="Ona tili">Ona tili</option>
+                          <option value="A1 (Beginner)">A1 (Boshlang‘ich)</option>
+                          <option value="A2 (Elementary)">A2</option>
+                          <option value="B1 (Intermediate)">B1</option>
+                          <option value="B2 (Upper-Interm)">B2</option>
+                          <option value="C1 (Advanced)">C1</option>
+                          <option value="C2 (Master)">C2</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!langDraft.name.trim()) return;
+                            setResumeData((prev) => ({
+                              ...prev,
+                              skills: {
+                                ...prev.skills,
+                                languages: [
+                                  ...prev.skills.languages,
+                                  { id: uid(), ...langDraft },
+                                ],
+                              },
+                            }));
+                            setLangDraft({ name: '', level: 'B2' });
+                          }}
+                          className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800"
+                        >
+                          Qo‘shish
+                        </button>
+                      </div>
+
+                      {resumeData.skills.languages.length > 0 && (
+                        <div className="space-y-1.5">
+                          {resumeData.skills.languages.map((l) => (
+                            <div
+                              key={l.id}
+                              className="flex items-center justify-between rounded-md border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs"
+                            >
+                              <span className="font-medium text-zinc-800">
+                                {l.name} — <span className="text-zinc-500">{l.level}</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setResumeData((prev) => ({
+                                    ...prev,
+                                    skills: {
+                                      ...prev.skills,
+                                      languages: prev.skills.languages.filter(
+                                        (item) => item.id !== l.id
+                                      ),
+                                    },
+                                  }))
+                                }
+                                className="text-zinc-400 hover:text-rose-600 font-bold"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'extras' && (
+                  <div className="space-y-6">
+                    <h2 className="text-sm font-bold text-zinc-900 border-b pb-2">
+                      Qo‘shimcha ma’lumotlar (Loyihalar, Mukofotlar, Ko‘ngillilik, Nashrlar)
+                    </h2>
+
+                    {[
+                      { key: 'projects', label: 'Loyihalar' },
+                      { key: 'awards', label: 'Mukofotlar va yutuqlar' },
+                      { key: 'volunteer', label: 'Ko‘ngillilik faoliyati' },
+                      { key: 'publications', label: 'Ilmiy nashrlar' },
+                    ].map((sec) => (
+                      <div key={sec.key} className="space-y-3 rounded-lg border border-zinc-200 p-3 bg-zinc-50/40">
+                        <h3 className="text-xs font-semibold text-zinc-800">{sec.label}</h3>
+
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            value={extraDrafts[sec.key].title}
+                            onChange={(e) =>
+                              setExtraDrafts((prev) => ({
+                                ...prev,
+                                [sec.key]: { ...prev[sec.key], title: e.target.value },
+                              }))
+                            }
+                            placeholder="Sarlavha (Masalan: TaskFlow veb-ilovasi)"
+                            className="w-full rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs text-zinc-900 bg-white focus:border-zinc-900 focus:outline-none"
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              value={extraDrafts[sec.key].subtitle}
+                              onChange={(e) =>
+                                setExtraDrafts((prev) => ({
+                                  ...prev,
+                                  [sec.key]: { ...prev[sec.key], subtitle: e.target.value },
+                                }))
+                              }
+                              placeholder="Kichik sarlavha / Texnologiyalar"
+                              className="w-full rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs text-zinc-900 bg-white focus:border-zinc-900 focus:outline-none"
+                            />
+                            <input
+                              type="text"
+                              value={extraDrafts[sec.key].date}
+                              onChange={(e) =>
+                                setExtraDrafts((prev) => ({
+                                  ...prev,
+                                  [sec.key]: { ...prev[sec.key], date: e.target.value },
+                                }))
+                              }
+                              placeholder="Sana / Yil (2024)"
+                              className="w-full rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs text-zinc-900 bg-white focus:border-zinc-900 focus:outline-none"
+                            />
+                          </div>
+                          <input
+                            type="text"
+                            value={extraDrafts[sec.key].description}
+                            onChange={(e) =>
+                              setExtraDrafts((prev) => ({
+                                ...prev,
+                                [sec.key]: { ...prev[sec.key], description: e.target.value },
+                              }))
+                            }
+                            placeholder="Batafsil tavsif (ixtiyoriy)"
+                            className="w-full rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs text-zinc-900 bg-white focus:border-zinc-900 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleAddExtraItem(sec.key)}
+                            className="rounded bg-zinc-900 px-3 py-1 text-xs font-medium text-white hover:bg-zinc-800"
+                          >
+                            + {sec.label} bo‘limiga qo‘shish
+                          </button>
+                        </div>
+
+                        {resumeData.extras[sec.key].length > 0 && (
+                          <div className="space-y-1.5 pt-2">
+                            {resumeData.extras[sec.key].map((item) => (
+                              <div
+                                key={item.id}
+                                className="flex items-center justify-between rounded border border-zinc-200 bg-white px-2.5 py-1.5 text-xs"
+                              >
+                                <div>
+                                  <span className="font-semibold text-zinc-900">{item.title}</span>
+                                  {item.subtitle && <span className="text-zinc-500"> ({item.subtitle})</span>}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveExtraItem(sec.key, item.id)}
+                                  className="text-zinc-400 hover:text-rose-600 font-bold"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {activeTab === 'coverLetter' && (
+                  <div className="space-y-4">
+                    <h2 className="text-sm font-bold text-zinc-900 border-b pb-2">
+                      AI Hamroh Xat (Cover Letter) Generatori
+                    </h2>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-zinc-700">
+                          Kompaniya / Ish beruvchi nomi
+                        </label>
+                        <input
+                          type="text"
+                          value={resumeData.coverLetter.companyName}
+                          onChange={(e) =>
+                            setResumeData((prev) => ({
+                              ...prev,
+                              coverLetter: { ...prev.coverLetter, companyName: e.target.value },
+                            }))
+                          }
+                          placeholder="NordicCloud Systems"
+                          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-zinc-700">
+                          Maqsadli lavozim
+                        </label>
+                        <input
+                          type="text"
+                          value={resumeData.coverLetter.targetRole}
+                          onChange={(e) =>
+                            setResumeData((prev) => ({
+                              ...prev,
+                              coverLetter: { ...prev.coverLetter, targetRole: e.target.value },
+                            }))
+                          }
+                          placeholder="Frontend Dasturchi"
+                          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-zinc-700">
+                        Vakansiya tavsifi (Job Description)
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={resumeData.coverLetter.jobDescription}
+                        onChange={(e) =>
+                          setResumeData((prev) => ({
+                            ...prev,
+                            coverLetter: { ...prev.coverLetter, jobDescription: e.target.value },
+                          }))
+                        }
+                        placeholder="Vakansiya matnidan asosiy talablarni kiritsangiz, xat yanada moslashtiriladi..."
+                        className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-xs text-zinc-900 focus:border-zinc-900 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-zinc-700">
+                        Xat ohangi (Tone)
+                      </label>
+                      <select
+                        value={resumeData.coverLetter.tone}
+                        onChange={(e) =>
+                          setResumeData((prev) => ({
+                            ...prev,
+                            coverLetter: { ...prev.coverLetter, tone: e.target.value },
+                          }))
+                        }
+                        className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-xs text-zinc-900 bg-white focus:border-zinc-900 focus:outline-none"
+                      >
+                        {TONES.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleGenerateCoverLetter}
+                        className="rounded-lg bg-zinc-900 px-3.5 py-2 text-xs font-medium text-white hover:bg-zinc-800 shadow-sm"
+                      >
+                        Hamroh xat yaratish
+                      </button>
+                      {resumeData.coverLetter.content && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={isExportingPdf}
+                            onClick={() => handleDownloadPdf('coverLetter')}
+                            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-100 disabled:opacity-50"
+                          >
+                            Xatni PDF yuklab olish
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              downloadFile(
+                                'hamroh-xat.md',
+                                resumeData.coverLetter.content,
+                                'text/markdown;charset=utf-8'
+                              )
+                            }
+                            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-100"
+                          >
+                            Xatni yuklab olish (.md)
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-medium text-zinc-700 block mb-1">
+                        Tayyor hamroh xat matni (Tahrirlanadigan):
+                      </label>
+                      <textarea
+                        rows={10}
+                        value={resumeData.coverLetter.content}
+                        onChange={(e) =>
+                          setResumeData((prev) => ({
+                            ...prev,
+                            coverLetter: { ...prev.coverLetter, content: e.target.value },
+                          }))
+                        }
+                        placeholder="Ushbu maydonda yaratilgan hamroh xat ko‘rinadi..."
+                        className="w-full rounded-lg border border-zinc-300 p-3 text-xs text-zinc-900 leading-relaxed font-sans focus:border-zinc-900 focus:outline-none bg-zinc-50/50"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'design' && (
+                  <div className="space-y-6">
+                    <h2 className="text-sm font-bold text-zinc-900 border-b pb-2">
+                      Dizayn va Vizual sozlamalar
+                    </h2>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-zinc-700 block">
+                        Rezyume shabloni
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {TEMPLATES.map((tmpl) => (
+                          <button
+                            key={tmpl.id}
+                            type="button"
+                            onClick={() => setTemplateId(tmpl.id)}
+                            className={`rounded-lg border p-3 text-left text-xs transition ${
+                              templateId === tmpl.id
+                                ? 'border-zinc-900 bg-zinc-900 text-white font-semibold'
+                                : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                            }`}
+                          >
+                            {tmpl.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-zinc-700 block">
+                        Rang palitrasi
+                      </label>
+                      <div className="flex flex-wrap gap-3">
+                        {Object.values(ACCENTS).map((acc) => (
+                          <button
+                            key={acc.id}
+                            type="button"
+                            onClick={() => setAccentId(acc.id)}
+                            className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                              accentId === acc.id
+                                ? 'border-zinc-900 bg-zinc-100 ring-1 ring-zinc-900'
+                                : 'border-zinc-200 bg-white hover:bg-zinc-50'
+                            }`}
+                          >
+                            <span className={`w-3.5 h-3.5 rounded-full ${acc.swatchClass}`}></span>
+                            <span>{acc.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-zinc-700 block">
+                        Shrift (Typography)
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {FONTS.map((f) => (
+                          <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => setFontId(f.id)}
+                            className={`rounded-lg border p-2 text-center text-xs transition ${
+                              fontId === f.id
+                                ? 'border-zinc-900 bg-zinc-900 text-white font-semibold'
+                                : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                            }`}
+                          >
+                            {f.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-zinc-200 flex flex-wrap gap-2 justify-between">
+                      <button
+                        type="button"
+                        onClick={handleResetSample}
+                        className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
+                      >
+                        Namunani tiklash
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleClearAll}
+                        className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100"
+                      >
+                        Bo‘sh shakl (Tozalash)
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section
+              className={`lg:col-span-6 xl:col-span-7 flex flex-col rounded-xl border border-zinc-200 bg-zinc-200/70 shadow-sm overflow-hidden ${
+                mobileView === 'editor' ? 'hidden lg:flex' : 'flex'
+              }`}
+            >
+              <div className="flex items-center justify-between border-b border-zinc-300/70 bg-white px-4 py-2 text-xs">
+                <span className="font-medium text-zinc-700">
+                  Real vaqtli A4 Preview ({TEMPLATES.find((t) => t.id === templateId)?.label})
+                </span>
+                <span className="text-zinc-500">A4 (210mm × 297mm)</span>
+              </div>
+
+              <div className="flex-1 overflow-auto p-3 sm:p-6 flex justify-center items-start">
+                <div className="origin-top scale-[0.42] sm:scale-[0.65] md:scale-[0.75] xl:scale-[0.82] transition-transform">
+                  <ResumePreviewSheet
+                    ref={resumePreviewRef}
+                    id="resume-preview"
+                    data={resumeData}
+                    templateId={templateId}
+                    accentId={accentId}
+                    fontId={fontId}
+                  />
+                </div>
+              </div>
+            </section>
+          </main>
+
+          <div className="hidden">
+            <div
+              ref={coverLetterRef}
+              className="a4-sheet p-12 whitespace-pre-line text-sm leading-relaxed text-zinc-900 bg-white"
+            >
+              {resumeData.coverLetter.content || buildCoverLetterFromResume(resumeData, resumeData.coverLetter)}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
